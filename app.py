@@ -303,22 +303,109 @@ ROUNDS = [
         "badge": ("🛠️", "Kontrol Mimarı"),
     },
     {
-        "icon": "🧠",
-        "title": "4. Görev — Zihin Tuzakları",
-        "subtitle": "Risk kararını bozan bilişsel eğilimleri yakala.",
-        "type": "matching",
+        "icon": "🕵️",
+        "title": "4. Görev — Risk Dedektifi",
+        "subtitle": "Teknik olarak ölçülen risk mi değişti, algımız mı?",
+        "type": "scenario_quiz",
         "each": 4,
         "base_max": 20,
-        "options": ["Erişilebilirlik", "Aşırı Güven", "Kontrol Yanılsaması", "Normalleşme", "Çerçeveleme"],
-        "items": [
-            ("Yakındaki yangından sonra, kendi verisi değişmediği halde riski birden çok yüksek görmek", "Erişilebilirlik"),
-            ("“Tahminlerimiz hep tutuyor; bu yıl da rezerv kesin yeter.”", "Aşırı Güven"),
-            ("“Bizim ekip çok iyi; saldırı olursa zaten kontrol ederiz.”", "Kontrol Yanılsaması"),
-            ("“On yıldır büyük kaza olmadı; bundan sonra da olmaz.”", "Normalleşme"),
-            ("Aynı riski “%90 güvenli” ve “%10 kayıp ihtimali” ifadelerinde farklı değerlendirmek", "Çerçeveleme"),
+        "scenarios": [
+            {
+                "title": "🔥 Olay 1 — Komşu Fabrikada Yangın",
+                "text": (
+                    "Yan fabrikada büyük bir yangın çıktı. Sizin fabrikanızda elektrik sistemi, "
+                    "üretim süreci, bakım programı ve geçmiş hasar verileri değişmedi. "
+                    "Buna rağmen yönetici “Yangın riskimiz artık çok daha yüksek.” diyor."
+                ),
+                "options": [
+                    "A) Teknik olarak ölçülen risk değişti",
+                    "B) Algılanan risk değişti",
+                    "C) Her ikisi de değişti",
+                    "D) Karar vermek için yeterli bilgi yok",
+                ],
+                "correct": "B) Algılanan risk değişti",
+                "explain": (
+                    "Yakındaki olay yöneticinin risk algısını artırmış olabilir. "
+                    "Ancak işletmenin kendi teknik risk göstergelerinde yeni bir değişiklik yok."
+                ),
+            },
+            {
+                "title": "⚡ Olay 2 — Bakım Raporu Geldi",
+                "text": (
+                    "Teknik incelemede elektrik tesisatının eskidiği, son altı ayda küçük elektrik "
+                    "arızalarının arttığı ve bazı güvenlik kontrollerinin geciktiği belirlendi."
+                ),
+                "options": [
+                    "A) Teknik olarak ölçülen risk değişti",
+                    "B) Algılanan risk değişti",
+                    "C) Her ikisi de değişti",
+                    "D) Karar vermek için yeterli bilgi yok",
+                ],
+                "correct": "A) Teknik olarak ölçülen risk değişti",
+                "explain": (
+                    "Burada yalnızca bir his veya endişe yok. Risk değerlendirmesini değiştirecek "
+                    "yeni veri ve gözlemler var."
+                ),
+            },
+            {
+                "title": "🛡️ Olay 3 — “Biz Hazırız”",
+                "text": (
+                    "Şirket yeni bir acil durum tatbikatı yaptı. Yönetici “Artık bize hiçbir şey olmaz.” diyor. "
+                    "Ancak yangının oluşma olasılığına ilişkin verilerde herhangi bir değişiklik yok."
+                ),
+                "options": [
+                    "A) Teknik olarak ölçülen risk değişti",
+                    "B) Algılanan risk değişti",
+                    "C) Her ikisi de değişti",
+                    "D) Karar vermek için yeterli bilgi yok",
+                ],
+                "correct": "B) Algılanan risk değişti",
+                "explain": (
+                    "Hazırlıklı olmak önemlidir; ancak kişinin kendisini daha güvende hissetmesi, "
+                    "olayın gerçekleşme olasılığının otomatik olarak azaldığı anlamına gelmez."
+                ),
+            },
+            {
+                "title": "🚨 Olay 4 — Hem Veri Hem Algı",
+                "text": (
+                    "Son bir yılda iş kazalarının sayısı arttı, bakım gecikmeleri çoğaldı ve çalışanlar "
+                    "işyerini eskisine göre daha tehlikeli bulmaya başladı."
+                ),
+                "options": [
+                    "A) Teknik olarak ölçülen risk değişti",
+                    "B) Algılanan risk değişti",
+                    "C) Her ikisi de değişti",
+                    "D) Karar vermek için yeterli bilgi yok",
+                ],
+                "correct": "C) Her ikisi de değişti",
+                "explain": (
+                    "Yeni veriler teknik risk değerlendirmesini değiştirirken çalışanların risk algısı da yükselmiştir."
+                ),
+            },
+            {
+                "title": "🎯 Final Kararı — Risk Yöneticisi Ne Yapmalı?",
+                "text": (
+                    "Bir yönetici bir riski çok tehlikeli hissediyor; ancak mevcut veriler bu görüşü desteklemiyor. "
+                    "En uygun yaklaşım hangisidir?"
+                ),
+                "options": [
+                    "A) Yöneticinin hissine göre hemen karar vermek",
+                    "B) Riski tamamen görmezden gelmek",
+                    "C) Algıyı dikkate almak, ancak kararı veri ve analizle kontrol etmek",
+                    "D) Her durumda sigorta satın almak",
+                ],
+                "correct": "C) Algıyı dikkate almak, ancak kararı veri ve analizle kontrol etmek",
+                "explain": (
+                    "Risk yönetimi yalnızca sayılara bakmak değildir; yalnızca hislere dayanmak da değildir. "
+                    "Veri değerlendirilir, insanların riski nasıl algıladığı da dikkate alınır."
+                ),
+            },
         ],
-        "explain": "Teknik risk değişmese bile deneyim, güven, kontrol hissi ve bilginin sunuluş biçimi algılanan riski değiştirebilir.",
-        "badge": ("🧠", "Önyargı Avcısı"),
+        "explain": (
+            "Teknik olarak ölçülen risk; veri, gözlem, olasılık, sıklık ve kayıp şiddetine dayanır. "
+            "Algılanan risk ise deneyim, duygu, güven ve kontrol hissinden etkilenebilir."
+        ),
+        "badge": ("🕵️", "Risk Dedektifi"),
     },
     {
         "icon": "⚖️",
@@ -793,6 +880,14 @@ if ri in st.session_state.feedback:
         st.markdown(f"**Doğru cevap:** {r['correct']}")
         st.info(r["explain"])
 
+    elif r["type"] == "scenario_quiz":
+        st.markdown("### 🕵️ Risk Dedektifi — Doğru Kararlar")
+        for i, s in enumerate(r["scenarios"], 1):
+            st.markdown(f"**{i}. {s['title']}**")
+            st.markdown(f"Doğru cevap: **{s['correct']}**")
+            st.caption(s["explain"])
+        st.info(r["explain"])
+
     elif r["type"] == "matching":
         st.markdown("**Doğru eşleştirmeler:**")
         for q, a in r["items"]:
@@ -885,6 +980,44 @@ if r["type"] == "single":
             base_points = r["base_max"] if answer == r["correct"] else 0
             if use_joker:
                 st.session_state.joker_used = True
+            record_round(ri, base_points, use_joker)
+            st.rerun()
+
+elif r["type"] == "scenario_quiz":
+    with st.form(f"scenario_form_{ri}"):
+        st.markdown("### 🕵️ Risk Dedektifi Dosyaları")
+        st.caption("Her olayda önce şu soruyu sor: Teknik veriler mi değişti, yoksa insanların risk algısı mı?")
+
+        responses = {}
+        for i, s in enumerate(r["scenarios"], 1):
+            st.markdown(f"#### {s['title']}")
+            st.write(s["text"])
+            responses[i] = st.radio(
+                f"{i}. kararın",
+                s["options"],
+                index=None,
+                key=f"scenario_{ri}_{i}",
+            )
+            st.divider()
+
+        use_joker = False
+        if not st.session_state.joker_used:
+            use_joker = st.checkbox("🎲 Risk Jokerini kullan")
+
+        submit = st.form_submit_button("🔒 DOSYAYI KAPAT", type="primary", use_container_width=True)
+
+    if submit:
+        if any(v is None for v in responses.values()):
+            st.error("Tüm olaylar için bir karar ver.")
+        else:
+            base_points = 0
+            for i, s in enumerate(r["scenarios"], 1):
+                if responses[i] == s["correct"]:
+                    base_points += r["each"]
+
+            if use_joker:
+                st.session_state.joker_used = True
+
             record_round(ri, base_points, use_joker)
             st.rerun()
 
