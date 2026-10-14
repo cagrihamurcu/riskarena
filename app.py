@@ -252,18 +252,25 @@ ROUNDS = [
     {
         "icon": "🌐",
         "title": "1. Görev — ERM Radarı",
-        "subtitle": "Riskleri tek tek değil, birlikte gör.",
+        "subtitle": "Bir olayın kurumun tamamına nasıl yayıldığını fark et.",
         "type": "single",
         "base_max": 20,
-        "question": "Hangisi Kurumsal Risk Yönetimi (ERM) yaklaşımını en iyi gösterir?",
+        "question": (
+            "Bir sigorta şirketinde büyük bir siber saldırı yaşandı. "
+            "Poliçe sistemi durdu, hasar işlemleri yavaşladı, müşteri şikâyetleri arttı "
+            "ve şirketin itibarı zarar görmeye başladı. Yönetim ilk olarak ne yapmalıdır?"
+        ),
         "options": [
-            "BT biriminin yalnızca siber riskleri değerlendirmesi",
-            "Finans biriminin yalnızca faiz riskine bakması",
-            "Deprem senaryosunun hasar, yatırım, likidite, operasyon ve reasürans etkilerini birlikte değerlendirmek",
-            "Yıllık sigorta poliçelerini yenilemek",
+            "Sorunu yalnızca Bilgi Teknolojileri biriminin çözmesini beklemek",
+            "Her birimin kendi sorununu ayrı ayrı yönetmesini istemek",
+            "Olayın operasyon, müşteri, finans, itibar ve diğer riskler üzerindeki birleşik etkisini birlikte değerlendirmek",
+            "Yalnızca siber sigorta teminatının yeterli olup olmadığını kontrol etmek",
         ],
-        "correct": "Deprem senaryosunun hasar, yatırım, likidite, operasyon ve reasürans etkilerini birlikte değerlendirmek",
-        "explain": "ERM, riskleri ayrı kutular halinde değil; birbirleriyle bağlantılı bir risk portföyü olarak değerlendirir.",
+        "correct": "Olayın operasyon, müşteri, finans, itibar ve diğer riskler üzerindeki birleşik etkisini birlikte değerlendirmek",
+        "explain": (
+            "ERM yaklaşımında tek bir olayın farklı riskleri aynı anda nasıl etkilediğine bakılır. "
+            "Amaç yalnızca bir birimin sorununu çözmek değil, kurumun toplam risk profilini görmektir."
+        ),
         "badge": ("🌐", "ERM Kaşifi"),
     },
     {
