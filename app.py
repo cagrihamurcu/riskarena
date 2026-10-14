@@ -1,5 +1,5 @@
 
-import random
+import hashlib
 import sqlite3
 import time
 import uuid
@@ -14,559 +14,971 @@ st.set_page_config(
     layout="centered",
 )
 
-DB_PATH = "risk_arena_results.db"
+DB_PATH = "risk_arena_v5.db"
 
-# -----------------------------
-# Görünüm
-# -----------------------------
+# =========================================================
+# GÖRSEL TASARIM
+# =========================================================
 st.markdown(
     """
     <style>
-      .block-container {max-width: 900px; padding-top: 1.2rem; padding-bottom: 2rem;}
-      .hero {
-        padding: 1.2rem 1.4rem;
-        border-radius: 18px;
-        background: linear-gradient(135deg,#f8fbff,#eef6ff);
+      .block-container {
+        max-width: 960px;
+        padding-top: 1.1rem;
+        padding-bottom: 2.5rem;
+      }
+
+      .arena-hero {
         border: 1px solid #dbeafe;
+        border-radius: 22px;
+        padding: 1.35rem 1.5rem;
+        background:
+          radial-gradient(circle at top right, rgba(59,130,246,.13), transparent 32%),
+          linear-gradient(135deg, #f8fbff 0%, #eef6ff 100%);
         margin-bottom: 1rem;
       }
-      .hero h1 {margin:0; font-size:2.1rem;}
-      .hero p {margin:.35rem 0 0 0; font-size:1.03rem;}
-      .me {
+      .arena-hero h1 {
+        margin: 0;
+        font-size: 2.25rem;
+        line-height: 1.05;
+      }
+      .arena-hero p {
+        margin: .45rem 0 0 0;
+        color: #475569;
+        font-size: 1.03rem;
+      }
+
+      .player-strip {
+        display:flex;
+        flex-wrap:wrap;
+        gap:.6rem;
+        align-items:center;
         padding:.8rem 1rem;
-        border-radius:14px;
-        background:#f8fafc;
+        border-radius:16px;
         border:1px solid #e2e8f0;
+        background:#f8fafc;
         margin-bottom:1rem;
       }
-      .good {padding:.8rem 1rem; border-left:5px solid #16a34a; background:#f0fdf4; border-radius:10px;}
-      .warn {padding:.8rem 1rem; border-left:5px solid #f59e0b; background:#fffbeb; border-radius:10px;}
-      .danger {padding:.8rem 1rem; border-left:5px solid #dc2626; background:#fef2f2; border-radius:10px;}
-      .small {font-size:.9rem;color:#64748b;}
+      .chip {
+        display:inline-flex;
+        align-items:center;
+        gap:.35rem;
+        padding:.35rem .65rem;
+        border-radius:999px;
+        background:#fff;
+        border:1px solid #e2e8f0;
+        font-size:.92rem;
+        font-weight:700;
+      }
+
+      .mission-card {
+        border:1px solid #e2e8f0;
+        border-radius:18px;
+        background:#fff;
+        padding:1rem 1.1rem;
+        margin:.75rem 0 1rem 0;
+      }
+      .mission-kicker {
+        font-size:.82rem;
+        font-weight:800;
+        letter-spacing:.08em;
+        text-transform:uppercase;
+        color:#64748b;
+      }
+      .mission-card h3 {
+        margin:.2rem 0 .35rem 0;
+      }
+
+      .power-card {
+        border:1px solid #fde68a;
+        background:linear-gradient(135deg,#fffbea,#fff7d6);
+        border-radius:16px;
+        padding:.9rem 1rem;
+        margin:.75rem 0;
+      }
+
+      .success-box {
+        border-left:5px solid #16a34a;
+        background:#f0fdf4;
+        padding:.85rem 1rem;
+        border-radius:12px;
+      }
+      .warning-box {
+        border-left:5px solid #f59e0b;
+        background:#fffbeb;
+        padding:.85rem 1rem;
+        border-radius:12px;
+      }
+      .danger-box {
+        border-left:5px solid #dc2626;
+        background:#fef2f2;
+        padding:.85rem 1rem;
+        border-radius:12px;
+      }
+
+      .badge-grid {
+        display:grid;
+        grid-template-columns:repeat(auto-fit,minmax(145px,1fr));
+        gap:.65rem;
+        margin:.8rem 0;
+      }
+      .badge-card {
+        border:1px solid #e2e8f0;
+        border-radius:14px;
+        padding:.75rem;
+        background:#fff;
+        text-align:center;
+      }
+      .badge-card.locked {
+        opacity:.45;
+        filter:grayscale(1);
+      }
+      .badge-icon {font-size:1.6rem;}
+      .badge-name {font-weight:800;font-size:.9rem;margin-top:.2rem;}
+
+      .boss {
+        border:1px solid #fecaca;
+        border-radius:18px;
+        padding:1rem 1.1rem;
+        background:linear-gradient(135deg,#fff7f7,#fff);
+        margin:.8rem 0;
+      }
+      .boss-title {
+        font-size:1.2rem;
+        font-weight:900;
+        margin-bottom:.3rem;
+      }
+
+      .rank-card {
+        border:1px solid #dbeafe;
+        border-radius:20px;
+        padding:1rem 1.15rem;
+        background:linear-gradient(135deg,#f8fbff,#ffffff);
+        text-align:center;
+      }
+      .rank-medal {font-size:3rem;line-height:1;}
+      .rank-title {font-size:1.25rem;font-weight:900;margin:.35rem 0;}
+      .rank-sub {color:#64748b;font-size:.93rem;}
+
+      .small-muted {font-size:.9rem;color:#64748b;}
     </style>
     """,
     unsafe_allow_html=True,
 )
 
-# -----------------------------
-# Ortak sonuç veritabanı
-# Öğrenci ana ekranında ASLA gösterilmez.
-# Sadece öğretmen alanında.
-# -----------------------------
-def conn():
+# =========================================================
+# VERİTABANI — sadece öğretmen alanı için
+# =========================================================
+def db_conn():
     c = sqlite3.connect(DB_PATH, timeout=30, check_same_thread=False)
     c.execute("PRAGMA journal_mode=WAL;")
     return c
 
+
 def init_db():
-    with conn() as c:
-        c.execute("""
-        CREATE TABLE IF NOT EXISTS results(
-            id TEXT PRIMARY KEY,
-            name TEXT NOT NULL,
-            score INTEGER NOT NULL,
-            knowledge INTEGER NOT NULL,
-            crisis INTEGER NOT NULL,
-            duration INTEGER NOT NULL,
-            finished_at TEXT NOT NULL
+    with db_conn() as c:
+        c.execute(
+            """
+            CREATE TABLE IF NOT EXISTS results(
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                avatar TEXT NOT NULL,
+                role TEXT NOT NULL,
+                base_score INTEGER NOT NULL,
+                bonus_score INTEGER NOT NULL,
+                crisis_score INTEGER NOT NULL,
+                total_score INTEGER NOT NULL,
+                duration INTEGER NOT NULL,
+                finished_at TEXT NOT NULL
+            )
+            """
         )
-        """)
         c.commit()
+
 
 def save_result():
     duration = int(time.time() - st.session_state.started_at)
-    with conn() as c:
-        c.execute("""
-        INSERT OR REPLACE INTO results
-        (id,name,score,knowledge,crisis,duration,finished_at)
-        VALUES(?,?,?,?,?,?,?)
-        """, (
-            st.session_state.player_id,
-            st.session_state.name,
-            st.session_state.knowledge + st.session_state.crisis_score,
-            st.session_state.knowledge,
-            st.session_state.crisis_score,
-            duration,
-            datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        ))
+    with db_conn() as c:
+        c.execute(
+            """
+            INSERT OR REPLACE INTO results
+            (id,name,avatar,role,base_score,bonus_score,crisis_score,total_score,duration,finished_at)
+            VALUES(?,?,?,?,?,?,?,?,?,?)
+            """,
+            (
+                st.session_state.player_id,
+                st.session_state.name,
+                st.session_state.avatar,
+                st.session_state.role,
+                int(st.session_state.base_score),
+                int(st.session_state.bonus_score),
+                int(st.session_state.crisis_score),
+                int(total_score()),
+                duration,
+                datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            ),
+        )
         c.commit()
     st.session_state.duration = duration
 
+
 def teacher_results():
-    with conn() as c:
-        return pd.read_sql_query("""
-        SELECT name AS Öğrenci,
-               score AS Toplam,
-               knowledge AS Bilgi,
-               crisis AS Kriz,
-               duration AS Süre_sn,
-               finished_at AS Bitiş
-        FROM results
-        ORDER BY score DESC, duration ASC
-        """, c)
+    with db_conn() as c:
+        return pd.read_sql_query(
+            """
+            SELECT
+              name AS Öğrenci,
+              avatar AS Avatar,
+              role AS Rol,
+              total_score AS Toplam,
+              base_score AS Bilgi,
+              bonus_score AS Joker,
+              crisis_score AS Kriz,
+              duration AS Süre_sn,
+              finished_at AS Bitiş
+            FROM results
+            ORDER BY total_score DESC, duration ASC
+            """,
+            c,
+        )
+
 
 init_db()
 
-# -----------------------------
-# Soru seti
-# -----------------------------
+# =========================================================
+# OYUN İÇERİĞİ
+# =========================================================
 ROUNDS = [
     {
-        "title":"1. Tur — ERM Radarı",
-        "type":"single",
-        "points":20,
-        "question":"Hangisi Kurumsal Risk Yönetimi (ERM) yaklaşımını en iyi gösterir?",
-        "options":[
+        "icon": "🌐",
+        "title": "1. Görev — ERM Radarı",
+        "subtitle": "Riskleri tek tek değil, birlikte gör.",
+        "type": "single",
+        "base_max": 20,
+        "question": "Hangisi Kurumsal Risk Yönetimi (ERM) yaklaşımını en iyi gösterir?",
+        "options": [
             "BT biriminin yalnızca siber riskleri değerlendirmesi",
             "Finans biriminin yalnızca faiz riskine bakması",
             "Deprem senaryosunun hasar, yatırım, likidite, operasyon ve reasürans etkilerini birlikte değerlendirmek",
             "Yıllık sigorta poliçelerini yenilemek",
         ],
-        "correct":"Deprem senaryosunun hasar, yatırım, likidite, operasyon ve reasürans etkilerini birlikte değerlendirmek",
-        "explain":"ERM, riskleri tek tek değil; birbirleriyle bağlantılı bir risk portföyü olarak değerlendirir."
+        "correct": "Deprem senaryosunun hasar, yatırım, likidite, operasyon ve reasürans etkilerini birlikte değerlendirmek",
+        "explain": "ERM, riskleri ayrı kutular halinde değil; birbirleriyle bağlantılı bir risk portföyü olarak değerlendirir.",
+        "badge": ("🌐", "ERM Kaşifi"),
     },
     {
-        "title":"2. Tur — Kim Ne Yapar?",
-        "type":"matching",
-        "each":5,
-        "options":["Yönetim Kurulu","İş Birimi","Risk Yönetimi / CRO","İç Denetim"],
-        "items":[
-            ("Günlük faaliyette riski üstlenir ve kontrolleri uygular.","İş Birimi"),
-            ("Genel risk iştahını ve risk çerçevesini onaylar.","Yönetim Kurulu"),
-            ("Riskleri ölçer, izler, limitleri takip eder ve sorgular.","Risk Yönetimi / CRO"),
-            ("Sistemin etkinliği hakkında bağımsız güvence verir.","İç Denetim"),
+        "icon": "🧭",
+        "title": "2. Görev — Risk Komuta Merkezi",
+        "subtitle": "Doğru rolü doğru sorumlulukla eşleştir.",
+        "type": "matching",
+        "each": 5,
+        "base_max": 20,
+        "options": ["Yönetim Kurulu", "İş Birimi", "Risk Yönetimi / CRO", "İç Denetim"],
+        "items": [
+            ("Günlük faaliyette riski üstlenir ve kontrolleri uygular.", "İş Birimi"),
+            ("Genel risk iştahını ve risk çerçevesini onaylar.", "Yönetim Kurulu"),
+            ("Riskleri ölçer, izler, limitleri takip eder ve sorgular.", "Risk Yönetimi / CRO"),
+            ("Sistemin etkinliği hakkında bağımsız güvence verir.", "İç Denetim"),
         ],
-        "explain":"İş birimi riski yönetir; CRO izler ve sorgular; iç denetim bağımsız güvence verir."
+        "explain": "İş birimi riski yönetir; CRO izler ve sorgular; iç denetim bağımsız güvence verir.",
+        "badge": ("🧭", "Yönetişim Ustası"),
     },
     {
-        "title":"3. Tur — Kontrol Laboratuvarı",
-        "type":"matching",
-        "each":5,
-        "options":["Riskten Kaçınma","Kayıp Önleme","Kayıp Azaltma","Ayırma","Çoğaltma","Çeşitlendirme"],
-        "items":[
-            ("Taşkın riski çok yüksek bölgede fabrika kurmaktan vazgeçmek","Riskten Kaçınma"),
-            ("Elektrik sistemine periyodik bakım yaptırmak","Kayıp Önleme"),
-            ("Sprinkler sistemi kurmak","Kayıp Azaltma"),
-            ("Kritik stokları iki farklı depoda tutmak","Ayırma"),
-            ("Yedek veri merkezi kurmak","Çoğaltma"),
-            ("Tek tedarikçi yerine farklı tedarikçilerle çalışmak","Çeşitlendirme"),
+        "icon": "🛠️",
+        "title": "3. Görev — Kontrol Laboratuvarı",
+        "subtitle": "Risk kontrol araçlarını doğru yere yerleştir.",
+        "type": "matching",
+        "each": 5,
+        "base_max": 30,
+        "options": ["Riskten Kaçınma", "Kayıp Önleme", "Kayıp Azaltma", "Ayırma", "Çoğaltma", "Çeşitlendirme"],
+        "items": [
+            ("Taşkın riski çok yüksek bölgede fabrika kurmaktan vazgeçmek", "Riskten Kaçınma"),
+            ("Elektrik sistemine periyodik bakım yaptırmak", "Kayıp Önleme"),
+            ("Sprinkler sistemi kurmak", "Kayıp Azaltma"),
+            ("Kritik stokları iki farklı depoda tutmak", "Ayırma"),
+            ("Yedek veri merkezi kurmak", "Çoğaltma"),
+            ("Tek tedarikçi yerine farklı tedarikçilerle çalışmak", "Çeşitlendirme"),
         ],
-        "explain":"Kaçınma maruziyeti kaldırır; önleme sıklığı, azaltma şiddeti etkiler; ayırma böler, çoğaltma yedekler, çeşitlendirme bağımlılığı azaltır."
+        "explain": "Kaçınma maruziyeti kaldırır; önleme sıklığı, azaltma şiddeti etkiler; ayırma böler, çoğaltma yedekler, çeşitlendirme bağımlılığı azaltır.",
+        "badge": ("🛠️", "Kontrol Mimarı"),
     },
     {
-        "title":"4. Tur — Zihin Tuzakları",
-        "type":"matching",
-        "each":4,
-        "options":["Erişilebilirlik","Aşırı Güven","Kontrol Yanılsaması","Normalleşme","Çerçeveleme"],
-        "items":[
-            ("Yakındaki yangından sonra, kendi verisi değişmediği halde riski birden çok yüksek görmek","Erişilebilirlik"),
-            ("“Tahminlerimiz hep tutuyor; bu yıl da rezerv kesin yeter.”","Aşırı Güven"),
-            ("“Bizim ekip çok iyi; saldırı olursa zaten kontrol ederiz.”","Kontrol Yanılsaması"),
-            ("“On yıldır büyük kaza olmadı; bundan sonra da olmaz.”","Normalleşme"),
-            ("Aynı riski “%90 güvenli” ve “%10 kayıp ihtimali” ifadelerinde farklı değerlendirmek","Çerçeveleme"),
+        "icon": "🧠",
+        "title": "4. Görev — Zihin Tuzakları",
+        "subtitle": "Risk kararını bozan bilişsel eğilimleri yakala.",
+        "type": "matching",
+        "each": 4,
+        "base_max": 20,
+        "options": ["Erişilebilirlik", "Aşırı Güven", "Kontrol Yanılsaması", "Normalleşme", "Çerçeveleme"],
+        "items": [
+            ("Yakındaki yangından sonra, kendi verisi değişmediği halde riski birden çok yüksek görmek", "Erişilebilirlik"),
+            ("“Tahminlerimiz hep tutuyor; bu yıl da rezerv kesin yeter.”", "Aşırı Güven"),
+            ("“Bizim ekip çok iyi; saldırı olursa zaten kontrol ederiz.”", "Kontrol Yanılsaması"),
+            ("“On yıldır büyük kaza olmadı; bundan sonra da olmaz.”", "Normalleşme"),
+            ("Aynı riski “%90 güvenli” ve “%10 kayıp ihtimali” ifadelerinde farklı değerlendirmek", "Çerçeveleme"),
         ],
-        "explain":"Teknik risk düzeyi aynı kalsa bile deneyim, güven, kontrol hissi ve sunuluş biçimi algılanan riski değiştirebilir."
+        "explain": "Teknik risk değişmese bile deneyim, güven, kontrol hissi ve bilginin sunuluş biçimi algılanan riski değiştirebilir.",
+        "badge": ("🧠", "Önyargı Avcısı"),
     },
     {
-        "title":"5. Tur — Hangi Riskte Hangi Yöntem?",
-        "type":"matching",
-        "each":5,
-        "options":["Tutma","Önleme + Tutma","Azaltma + Sigorta / Transfer","Kaçınma / Süreci Yeniden Tasarlama"],
-        "items":[
-            ("Nadiren oluşan ve küçük kalan ekipman hasarları","Tutma"),
-            ("Sık tekrarlanan fakat tek tek küçük iş kazaları","Önleme + Tutma"),
-            ("Nadiren gerçekleşen fakat çok büyük kayıp yaratabilecek fabrika yangını","Azaltma + Sigorta / Transfer"),
-            ("Sık gerçekleşen ve her seferinde çok büyük kayıp yaratan tehlikeli süreç","Kaçınma / Süreci Yeniden Tasarlama"),
+        "icon": "⚖️",
+        "title": "5. Görev — Risk Stratejisti",
+        "subtitle": "Sıklık, şiddet ve kapasiteyi birlikte düşün.",
+        "type": "matching",
+        "each": 5,
+        "base_max": 20,
+        "options": ["Tutma", "Önleme + Tutma", "Azaltma + Sigorta / Transfer", "Kaçınma / Süreci Yeniden Tasarlama"],
+        "items": [
+            ("Nadiren oluşan ve küçük kalan ekipman hasarları", "Tutma"),
+            ("Sık tekrarlanan fakat tek tek küçük iş kazaları", "Önleme + Tutma"),
+            ("Nadiren gerçekleşen fakat çok büyük kayıp yaratabilecek fabrika yangını", "Azaltma + Sigorta / Transfer"),
+            ("Sık gerçekleşen ve her seferinde çok büyük kayıp yaratan tehlikeli süreç", "Kaçınma / Süreci Yeniden Tasarlama"),
         ],
-        "explain":"Sıklık ve şiddet başlangıç noktasıdır; kapasite, likidite, maliyet ve sigortalanabilirlik de kararı etkiler."
+        "explain": "Sıklık ve şiddet başlangıç noktasıdır; kapasite, likidite, maliyet ve sigortalanabilirlik de kararı etkiler.",
+        "badge": ("⚖️", "Risk Stratejisti"),
     },
     {
-        "title":"6. Tur — Kriz Odası",
-        "type":"crisis",
+        "icon": "👾",
+        "title": "6. Görev — BOSS: Kriz Odası",
+        "subtitle": "10 bütçe puanıyla krize hazırlan.",
+        "type": "crisis",
+        "base_max": 40,
+        "badge": ("👑", "Kriz Komutanı"),
     },
 ]
 
 MEASURES = {
-    "maintenance":{"label":"Bakım ve fiziksel risk azaltma","cost":2,"layer":"control"},
-    "bcp":{"label":"Acil durum + iş sürekliliği planı","cost":2,"layer":"control"},
-    "it":{"label":"Yedek veri merkezi + MFA","cost":4,"layer":"control"},
-    "reinsurance":{"label":"Reasürans korumasını güçlendir","cost":4,"layer":"finance"},
-    "liquidity":{"label":"Likidite tamponu oluştur","cost":3,"layer":"finance"},
-    "supplier":{"label":"Kritik tedarikçileri çeşitlendir","cost":2,"layer":"control"},
-    "claims":{"label":"Hasar operasyonunda yedek kapasite","cost":2,"layer":"control"},
-    "insurance":{"label":"Operasyonel riskler için ticari sigorta","cost":3,"layer":"finance"},
+    "maintenance": {"label": "Bakım ve fiziksel risk azaltma", "cost": 2, "layer": "control", "icon": "🔧"},
+    "bcp": {"label": "Acil durum + iş sürekliliği planı", "cost": 2, "layer": "control", "icon": "🗺️"},
+    "it": {"label": "Yedek veri merkezi + MFA", "cost": 4, "layer": "control", "icon": "🖥️"},
+    "reinsurance": {"label": "Reasürans korumasını güçlendir", "cost": 4, "layer": "finance", "icon": "🤝"},
+    "liquidity": {"label": "Likidite tamponu oluştur", "cost": 3, "layer": "finance", "icon": "💰"},
+    "supplier": {"label": "Kritik tedarikçileri çeşitlendir", "cost": 2, "layer": "control", "icon": "🚚"},
+    "claims": {"label": "Hasar operasyonunda yedek kapasite", "cost": 2, "layer": "control", "icon": "📋"},
+    "insurance": {"label": "Operasyonel riskler için ticari sigorta", "cost": 3, "layer": "finance", "icon": "🛡️"},
 }
 
 EVENTS = [
     {
-        "name":"🌍 Büyük Deprem",
-        "base":40,
-        "story":"Hasar ihbarları hızla arttı; bazı şubeler çalışamıyor; likidite ihtiyacı yükseldi; reasürans kritik hale geldi.",
-        "p":{"maintenance":5,"bcp":7,"it":7,"reinsurance":12,"liquidity":8,"supplier":3,"claims":6,"insurance":5}
+        "name": "🌍 Büyük Deprem",
+        "base": 40,
+        "story": "Hasar ihbarları hızla arttı; bazı şubeler çalışamıyor; likidite ihtiyacı yükseldi; reasürans kritik hale geldi.",
+        "p": {"maintenance": 5, "bcp": 7, "it": 7, "reinsurance": 12, "liquidity": 8, "supplier": 3, "claims": 6, "insurance": 5},
     },
     {
-        "name":"🛡️ Siber Saldırı",
-        "base":35,
-        "story":"Poliçe ve hasar sistemleri kesintiye uğradı; müşteri hizmetleri yavaşladı; iş sürekliliği ve itibar baskı altında.",
-        "p":{"maintenance":0,"bcp":5,"it":14,"reinsurance":1,"liquidity":4,"supplier":3,"claims":5,"insurance":8}
+        "name": "🛡️ Siber Saldırı",
+        "base": 35,
+        "story": "Poliçe ve hasar sistemleri kesintiye uğradı; müşteri hizmetleri yavaşladı; iş sürekliliği ve itibar baskı altında.",
+        "p": {"maintenance": 0, "bcp": 5, "it": 14, "reinsurance": 1, "liquidity": 4, "supplier": 3, "claims": 5, "insurance": 8},
     },
     {
-        "name":"🌊 Büyük Hasar Dalgası",
-        "base":40,
-        "story":"Kısa sürede çok sayıda yüksek tutarlı hasar geldi; nakit çıkışı ve hasar operasyonu baskı altında.",
-        "p":{"maintenance":2,"bcp":4,"it":3,"reinsurance":14,"liquidity":10,"supplier":1,"claims":8,"insurance":2}
+        "name": "🌊 Büyük Hasar Dalgası",
+        "base": 40,
+        "story": "Kısa sürede çok sayıda yüksek tutarlı hasar geldi; nakit çıkışı ve hasar operasyonu baskı altında.",
+        "p": {"maintenance": 2, "bcp": 4, "it": 3, "reinsurance": 14, "liquidity": 10, "supplier": 1, "claims": 8, "insurance": 2},
     },
     {
-        "name":"🚚 Kritik Tedarikçi Kesintisi",
-        "base":32,
-        "story":"Kritik bir hizmet tedarikçisi devre dışı kaldı; operasyon ve müşteri hizmetleri aksıyor.",
-        "p":{"maintenance":1,"bcp":6,"it":3,"reinsurance":0,"liquidity":4,"supplier":14,"claims":4,"insurance":1}
+        "name": "🚚 Kritik Tedarikçi Kesintisi",
+        "base": 32,
+        "story": "Kritik bir hizmet tedarikçisi devre dışı kaldı; operasyon ve müşteri hizmetleri aksıyor.",
+        "p": {"maintenance": 1, "bcp": 6, "it": 3, "reinsurance": 0, "liquidity": 4, "supplier": 14, "claims": 4, "insurance": 1},
     },
 ]
 
-# -----------------------------
-# Session
-# -----------------------------
-def start_player(name):
+AVATARS = ["🛡️", "🧠", "🎯", "📊", "⚡", "🧭"]
+ROLES = ["Risk Analisti", "Risk Muhafızı", "Strateji Mimarı", "Kriz Yöneticisi"]
+
+BASE_TOTAL_MAX = sum(r["base_max"] for r in ROUNDS)  # 150
+
+# =========================================================
+# YARDIMCI FONKSİYONLAR
+# =========================================================
+def daily_event():
+    """Aynı gün oynayan herkes için aynı kriz: rekabet daha adil."""
+    key = datetime.now().strftime("%Y-%m-%d")
+    digest = hashlib.sha256(key.encode("utf-8")).hexdigest()
+    idx = int(digest[:8], 16) % len(EVENTS)
+    return EVENTS[idx]
+
+
+def start_player(name, avatar, role):
     st.session_state.player_id = str(uuid.uuid4())
     st.session_state.name = name
+    st.session_state.avatar = avatar
+    st.session_state.role = role
     st.session_state.started_at = time.time()
-    st.session_state.round = 0
-    st.session_state.knowledge = 0
+
+    st.session_state.round_idx = 0
+    st.session_state.base_score = 0
+    st.session_state.bonus_score = 0
     st.session_state.crisis_score = 0
+
     st.session_state.joker_used = False
     st.session_state.feedback = {}
+    st.session_state.badges = []
+    st.session_state.perfect_streak = 0
+    st.session_state.best_streak = 0
+    st.session_state.celebrated_rounds = set()
     st.session_state.finished = False
-    rng = random.Random(st.session_state.player_id)
-    st.session_state.event = rng.choice(EVENTS)
+    st.session_state.event = daily_event()
 
-def ensure_player_state():
-    """Eski uygulama sürümünden kalan tarayıcı oturumlarında eksik anahtarları güvenle tamamlar."""
+
+def ensure_state():
     if "name" not in st.session_state:
         return
-
-    if "knowledge" not in st.session_state:
-        st.session_state.knowledge = 0
-
-    if "crisis_score" not in st.session_state:
-        # Eski sürümde "crisis" adı kullanılmış olabilir.
-        legacy_value = st.session_state.get("crisis", 0)
-        if isinstance(legacy_value, (int, float)):
-            st.session_state.crisis_score = int(legacy_value)
-        else:
-            st.session_state.crisis_score = 0
-
-    if "round" not in st.session_state:
-        st.session_state.round = 0
-    if "joker_used" not in st.session_state:
-        st.session_state.joker_used = False
-    if "feedback" not in st.session_state:
-        st.session_state.feedback = {}
-    if "finished" not in st.session_state:
-        st.session_state.finished = False
-    if "started_at" not in st.session_state:
-        st.session_state.started_at = time.time()
-    if "player_id" not in st.session_state:
-        st.session_state.player_id = str(uuid.uuid4())
-    if "event" not in st.session_state:
-        rng = random.Random(st.session_state.player_id)
-        st.session_state.event = rng.choice(EVENTS)
+    defaults = {
+        "avatar": "🛡️",
+        "role": "Risk Analisti",
+        "base_score": 0,
+        "bonus_score": 0,
+        "crisis_score": 0,
+        "round_idx": 0,
+        "joker_used": False,
+        "feedback": {},
+        "badges": [],
+        "perfect_streak": 0,
+        "best_streak": 0,
+        "celebrated_rounds": set(),
+        "finished": False,
+        "started_at": time.time(),
+        "player_id": str(uuid.uuid4()),
+        "event": daily_event(),
+    }
+    for k, v in defaults.items():
+        if k not in st.session_state:
+            st.session_state[k] = v
 
 
-def total():
-    ensure_player_state()
-    return st.session_state.knowledge + st.session_state.crisis_score
+def total_score():
+    ensure_state()
+    return int(st.session_state.base_score + st.session_state.bonus_score + st.session_state.crisis_score)
 
-def clear_session_only():
+
+def level_info():
+    xp = total_score()
+    level = min(6, 1 + xp // 35)
+    start_xp = (level - 1) * 35
+    next_xp = level * 35
+    if level >= 6:
+        return level, 1.0, "MAX"
+    progress = max(0.0, min(1.0, (xp - start_xp) / 35))
+    return level, progress, str(next_xp - xp)
+
+
+def round_is_perfect(round_idx, base_points):
+    return base_points >= ROUNDS[round_idx]["base_max"]
+
+
+def record_round(round_idx, base_points, joker_used=False, extra=None):
+    bonus = base_points if joker_used else 0
+
+    if round_idx < 5:
+        st.session_state.base_score += base_points
+        st.session_state.bonus_score += bonus
+    else:
+        st.session_state.crisis_score += base_points
+
+    perfect = round_is_perfect(round_idx, base_points)
+    if perfect:
+        st.session_state.perfect_streak += 1
+        if st.session_state.perfect_streak > st.session_state.best_streak:
+            st.session_state.best_streak = st.session_state.perfect_streak
+        icon, name = ROUNDS[round_idx]["badge"]
+        if name not in [b["name"] for b in st.session_state.badges]:
+            st.session_state.badges.append({"icon": icon, "name": name})
+    else:
+        st.session_state.perfect_streak = 0
+
+    fb = {
+        "base_points": base_points,
+        "bonus_points": bonus,
+        "perfect": perfect,
+    }
+    if extra:
+        fb.update(extra)
+    st.session_state.feedback[round_idx] = fb
+
+
+def reset_session():
     for k in list(st.session_state.keys()):
         del st.session_state[k]
 
-# Eski/hot-reload edilmiş oturumlarda state uyumluluğunu sağla.
-ensure_player_state()
 
-# -----------------------------
-# Sidebar — SADECE KENDİ BİLGİSİ
-# -----------------------------
+def render_player_strip():
+    level, _, _ = level_info()
+    st.markdown(
+        f"""
+        <div class="player-strip">
+          <span class="chip">{st.session_state.avatar} {st.session_state.name}</span>
+          <span class="chip">🏷️ {st.session_state.role}</span>
+          <span class="chip">⭐ XP {total_score()}</span>
+          <span class="chip">⬆️ Seviye {level}</span>
+          <span class="chip">🔥 Seri {st.session_state.perfect_streak}</span>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_level():
+    level, progress, to_next = level_info()
+    c1, c2 = st.columns([1, 3])
+    with c1:
+        st.metric("Seviye", level)
+    with c2:
+        st.caption("Seviye ilerlemesi")
+        st.progress(progress)
+        if to_next == "MAX":
+            st.caption("Maksimum seviyeye ulaştın.")
+        else:
+            st.caption(f"Sonraki seviyeye {to_next} XP")
+
+
+def render_mission_map():
+    ri = st.session_state.round_idx
+    st.markdown("**Görev Haritası**")
+    labels = []
+    for i, r in enumerate(ROUNDS):
+        if i < ri:
+            mark = "✅"
+        elif i == ri and not st.session_state.finished:
+            mark = "▶️"
+        else:
+            mark = "🔒"
+        labels.append(f"{mark} {r['icon']} {i+1}")
+    st.caption("  →  ".join(labels))
+
+
+def render_badges():
+    unlocked = {b["name"] for b in st.session_state.badges}
+    cards = []
+    for r in ROUNDS:
+        icon, name = r["badge"]
+        locked = name not in unlocked
+        cls = "badge-card locked" if locked else "badge-card"
+        cards.append(
+            f"<div class='{cls}'><div class='badge-icon'>{'🔒' if locked else icon}</div>"
+            f"<div class='badge-name'>{name}</div></div>"
+        )
+    st.markdown("<div class='badge-grid'>" + "".join(cards) + "</div>", unsafe_allow_html=True)
+
+
+def performance_rank():
+    performance = (st.session_state.base_score + st.session_state.crisis_score) / BASE_TOTAL_MAX
+    if performance >= .90:
+        return "🏆", "Risk Arena Eliti", "Kavramları ve karar mantığını çok güçlü biçimde birleştirdin."
+    if performance >= .78:
+        return "🥇", "Kıdemli Risk Stratejisti", "Güçlü performans. Karmaşık kararları büyük ölçüde doğru kuruyorsun."
+    if performance >= .65:
+        return "🥈", "Risk Stratejisti", "İyi düzey. Bazı karar alanlarında küçük tekrarlarla daha da güçlenebilirsin."
+    if performance >= .50:
+        return "🥉", "Risk Analisti", "Temel çerçeve oluşmuş durumda; özellikle kontrol ve finansman ayrımını pekiştir."
+    return "🧩", "Risk Çırağı", "Temel kavramları yeniden gözden geçirip simülasyonu tekrar oynaman yararlı olur."
+
+
+ensure_state()
+
+# =========================================================
+# SIDEBAR
+# =========================================================
 with st.sidebar:
     st.title("🎯 Risk Arena")
     st.caption("BİREYSEL ÖĞRENCİ MODU")
 
     if "name" in st.session_state:
-        st.markdown(f"**{st.session_state.name}**")
-        st.metric("Puanım", total())
+        st.markdown(f"### {st.session_state.avatar} {st.session_state.name}")
+        st.caption(st.session_state.role)
+
+        st.metric("XP", total_score())
+        level, prog, _ = level_info()
+        st.progress(prog)
+        st.caption(f"Seviye {level} • En iyi seri: {st.session_state.best_streak}")
+
         if not st.session_state.finished:
-            st.progress((st.session_state.round + 1) / len(ROUNDS))
-            st.caption(f"Tur {st.session_state.round + 1} / {len(ROUNDS)}")
-        st.caption("Risk Jokeri: " + ("Kullanıldı" if st.session_state.joker_used else "Hazır"))
+            st.progress((st.session_state.round_idx + 1) / len(ROUNDS))
+            st.caption(f"Görev {st.session_state.round_idx + 1} / {len(ROUNDS)}")
+
+        st.caption("🎲 Risk Jokeri: " + ("Kullanıldı" if st.session_state.joker_used else "Hazır"))
 
     st.divider()
-    st.markdown("**Bu ekranda başka öğrenci görünmez.**")
-    st.caption("Her öğrenci kendi cihazında yalnızca kendi sorularını ve puanını görür.")
+    st.caption("Başka öğrencilerin puanı ve cevabı öğrenci ekranında görünmez.")
 
-    with st.expander("🔐 Öğretmen alanı"):
-        code = st.text_input("Öğretmen kodu", type="password")
+    with st.expander("🔐 Öğretmen Alanı"):
+        code = st.text_input("Öğretmen kodu", type="password", key="teacher_code_v5")
         if code == "sigo451":
             df = teacher_results()
-            st.write(f"Tamamlayan: **{len(df)}**")
+            st.metric("Tamamlayan Öğrenci", len(df))
             if not df.empty:
+                c1, c2 = st.columns(2)
+                c1.metric("Sınıf Ortalaması", f"{df['Toplam'].mean():.1f}")
+                c2.metric("En Yüksek XP", int(df["Toplam"].max()))
                 st.dataframe(df, hide_index=True, use_container_width=True)
         elif code:
             st.error("Kod yanlış.")
 
-    if st.button("↩️ Oturumu sıfırla", use_container_width=True):
-        clear_session_only()
+    if st.button("↩️ Oturumu Sıfırla", use_container_width=True):
+        reset_session()
         st.rerun()
 
-# -----------------------------
-# Ana ekran
-# -----------------------------
+# =========================================================
+# GİRİŞ
+# =========================================================
 if "name" not in st.session_state:
     st.markdown(
         """
-        <div class="hero">
-          <h1>🎯 Risk Arena — Bireysel</h1>
-          <p>Takım yok. Her öğrenci kendi kararlarını verir, kendi puanını toplar.</p>
+        <div class="arena-hero">
+          <h1>🎯 Risk Arena</h1>
+          <p>Bir sınav değil: risk yöneticisi gibi karar vereceğin bireysel görev serisi.</p>
         </div>
         """,
-        unsafe_allow_html=True
+        unsafe_allow_html=True,
     )
+
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Görev", "6")
+    c2.metric("Güç", "1 Risk Jokeri")
+    c3.metric("Final", "👾 Kriz Boss'u")
+
+    st.markdown("### Oyuncunu oluştur")
+
+    with st.form("player_setup_v5"):
+        name = st.text_input("Ad Soyad", placeholder="Örn. Ayşe Yılmaz")
+
+        avatar = st.radio(
+            "Avatarını seç",
+            AVATARS,
+            horizontal=True,
+        )
+
+        role = st.selectbox(
+            "Risk rolünü seç",
+            ROLES,
+        )
+
+        start = st.form_submit_button("🚀 ARENAYA GİR", type="primary", use_container_width=True)
+
+    if start:
+        clean = name.strip()
+        if len(clean) < 2:
+            st.error("Lütfen adını ve soyadını yaz.")
+        else:
+            start_player(clean, avatar, role)
+            st.rerun()
 
     st.markdown(
         """
-        ### Nasıl oynanır?
-        - **Bireysel** oynarsın.
-        - Başka öğrencilerin cevaplarını veya puanlarını göremezsin.
-        - 5 bilgi/karar turu + 1 kriz turu vardır.
-        - Bir kez **Risk Jokeri** kullanabilirsin.
-        - Oyun sonunda yalnızca **kendi performans özetini** görürsün.
-        """
+        <div class="mission-card">
+          <div class="mission-kicker">OYUN MEKANİKLERİ</div>
+          <h3>Nasıl puan kazanırsın?</h3>
+          <p>
+            Doğru kararlarla XP kazanırsın. Kusursuz tamamladığın görevler rozet açar.
+            Bir kez kullanabileceğin <b>Risk Jokeri</b>, seçtiğin bilgi görevindeki puanını ikiye katlar.
+            Son görevde 10 bütçe puanıyla gerçek bir kriz öncesi yatırım kararı verirsin.
+          </p>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
-
-    with st.form("start"):
-        name = st.text_input("Ad Soyad", placeholder="Örn. Ayşe Yılmaz")
-        go = st.form_submit_button("🚀 Başla", type="primary", use_container_width=True)
-
-    if go:
-        name = name.strip()
-        if len(name) < 2:
-            st.error("Lütfen adınızı ve soyadınızı yazın.")
-        else:
-            start_player(name)
-            st.rerun()
     st.stop()
 
-# -----------------------------
-# Final — SADECE KENDİ SONUCU
-# -----------------------------
+# =========================================================
+# FİNAL
+# =========================================================
 if st.session_state.finished:
+    medal, rank_title, rank_text = performance_rank()
+
     st.markdown(
-        """
-        <div class="hero">
-          <h1>🏁 Simülasyon Tamamlandı</h1>
-          <p>Aşağıda yalnızca senin bireysel performansın var.</p>
+        f"""
+        <div class="arena-hero">
+          <h1>🏁 Arena Tamamlandı</h1>
+          <p>{st.session_state.avatar} {st.session_state.name} • {st.session_state.role}</p>
         </div>
         """,
-        unsafe_allow_html=True
+        unsafe_allow_html=True,
     )
 
-    c1,c2,c3 = st.columns(3)
-    c1.metric("Toplam Puanım", total())
-    c2.metric("Bilgi Puanım", st.session_state.knowledge)
-    c3.metric("Kriz Puanım", st.session_state.crisis_score)
-
-    st.caption(f"Süre: {st.session_state.duration // 60} dk {st.session_state.duration % 60} sn")
-
-    max_score = 20 + 20 + 30 + 20 + 20 + 40
-    pct = round(100 * total() / max_score)
-
-    if pct >= 85:
-        msg = "Çok güçlü. Kavramlar ve uygulama kararları birlikte oturmuş görünüyor."
-    elif pct >= 70:
-        msg = "İyi düzey. Birkaç karar alanında tekrar faydalı olabilir."
-    elif pct >= 55:
-        msg = "Temel çerçeve var; özellikle risk kontrolü–finansmanı ayrımını tekrar et."
-    else:
-        msg = "Temel kavramları yeniden gözden geçirip simülasyonu bir kez daha oynaman yararlı olur."
-
-    st.info(f"**Bireysel başarı oranı: %{pct}**\n\n{msg}")
+    st.balloons()
 
     st.markdown(
+        f"""
+        <div class="rank-card">
+          <div class="rank-medal">{medal}</div>
+          <div class="rank-title">{rank_title}</div>
+          <div class="rank-sub">{rank_text}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.write("")
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Toplam XP", total_score())
+    c2.metric("Bilgi", st.session_state.base_score)
+    c3.metric("Joker Bonusu", st.session_state.bonus_score)
+    c4.metric("Kriz", st.session_state.crisis_score)
+
+    st.caption(
+        f"Tamamlama süresi: {st.session_state.duration // 60} dk {st.session_state.duration % 60} sn "
+        f"• En iyi kusursuz görev serisi: {st.session_state.best_streak}"
+    )
+
+    st.markdown("### 🏅 Rozet Koleksiyonun")
+    render_badges()
+
+    st.markdown("### 🎓 Son Karar")
+    st.markdown(
         """
-        ### Kısa düşünme soruları
-        - ERM'de riskleri birlikte değerlendirmek neden önemlidir?
-        - Risk sahibi ile CRO neden aynı şey değildir?
-        - Bir riskte yalnız kontrol veya yalnız sigorta neden yeterli olmayabilir?
-        - Kriz turunda hangi kararını değiştirirdin?
+        - ERM'de riskleri neden tek tek değil, birlikte değerlendirmek gerekir?
+        - Risk sahibi ile CRO neden aynı rol değildir?
+        - Bir riskte yalnız kontrol veya yalnız sigortaya güvenmek neden yetersiz kalabilir?
+        - Kriz görevindeki kararını gerçek bir kurumda nasıl geliştirirdin?
         """
     )
 
     if st.button("🔁 Yeniden Oyna", type="primary", use_container_width=True):
         old_name = st.session_state.name
-        clear_session_only()
-        start_player(old_name)
+        old_avatar = st.session_state.avatar
+        old_role = st.session_state.role
+        reset_session()
+        start_player(old_name, old_avatar, old_role)
         st.rerun()
     st.stop()
 
-# -----------------------------
-# Tur ekranı
-# -----------------------------
-ri = st.session_state.round
+# =========================================================
+# AKTİF GÖREV
+# =========================================================
+ri = st.session_state.round_idx
 r = ROUNDS[ri]
 
 st.markdown(
     f"""
-    <div class="hero">
-      <h1>{r['title']}</h1>
-      <p>{st.session_state.name} • Bireysel Tur {ri+1}/6</p>
+    <div class="arena-hero">
+      <h1>{r['icon']} {r['title']}</h1>
+      <p>{r['subtitle']}</p>
     </div>
     """,
-    unsafe_allow_html=True
+    unsafe_allow_html=True,
 )
 
-st.markdown(
-    f"<div class='me'><b>Puanım:</b> {total()} &nbsp;&nbsp; | &nbsp;&nbsp; "
-    f"<b>Risk Jokeri:</b> {'Kullanıldı' if st.session_state.joker_used else 'Hazır'}</div>",
-    unsafe_allow_html=True
-)
+render_player_strip()
+render_mission_map()
+render_level()
 
-# Geri bildirim
+# Cevaplanmış görev geri bildirimi
 if ri in st.session_state.feedback:
     fb = st.session_state.feedback[ri]
-    if fb["points"] > 0:
-        st.success(f"+{fb['points']} puan")
+
+    if fb["perfect"] and ri not in st.session_state.celebrated_rounds:
+        st.session_state.celebrated_rounds.add(ri)
+        st.balloons()
+
+    earned = fb["base_points"] + fb["bonus_points"]
+    if earned > 0:
+        if fb["bonus_points"] > 0:
+            st.success(f"⚡ Görev puanı: {fb['base_points']} + Joker bonusu: {fb['bonus_points']} = **{earned} XP**")
+        else:
+            st.success(f"⭐ Bu görevden **{earned} XP** kazandın.")
     else:
-        st.warning("Bu tur puan kazanamadın.")
+        st.warning("Bu görevden XP kazanamadın; açıklamayı inceleyip bir sonraki göreve geç.")
+
+    if fb["perfect"]:
+        icon, badge_name = r["badge"]
+        st.markdown(
+            f"<div class='success-box'><b>{icon} Kusursuz görev!</b> "
+            f"<b>{badge_name}</b> rozeti açıldı. 🔥 Seri: {st.session_state.perfect_streak}</div>",
+            unsafe_allow_html=True,
+        )
 
     if r["type"] == "single":
         st.markdown(f"**Doğru cevap:** {r['correct']}")
         st.info(r["explain"])
+
     elif r["type"] == "matching":
         st.markdown("**Doğru eşleştirmeler:**")
-        for q,a in r["items"]:
+        for q, a in r["items"]:
             st.markdown(f"- {q} → **{a}**")
         st.info(r["explain"])
-    else:
+
+    elif r["type"] == "crisis":
         ev = fb["event"]
-        st.markdown(f"## Kriz: {ev['name']}")
-        st.markdown(f"<div class='danger'>{ev['story']}</div>", unsafe_allow_html=True)
         st.markdown(
             f"""
-            **Bütçe kullanımı:** {fb['cost']}/10  
-            **Koruma puanı:** {fb['protection']}  
-            **Katman bonusu:** {fb['bonus']}  
-            **Kalan risk:** {fb['residual']}  
-            **Kriz puanı:** {fb['points']}/40
-            """
-        )
-        st.markdown(
-            "<div class='good'><b>Ders bağlantısı:</b> Kontrol, finansman ve likidite/sermaye "
-            "birlikte düşünüldüğünde risk daha iyi yönetilir; yine de kalan risk tamamen yok olmaz.</div>",
-            unsafe_allow_html=True
+            <div class="boss">
+              <div class="boss-title">👾 KRİZ BOSS'U: {ev['name']}</div>
+              <div>{ev['story']}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
         )
 
-    label = "🏁 Bitir" if ri == len(ROUNDS)-1 else "➡️ Sonraki Tur"
-    if st.button(label, type="primary", use_container_width=True):
-        if ri == len(ROUNDS)-1:
+        st.markdown("**Kriz Dayanıklılığı**")
+        resilience = max(0.0, min(1.0, 1 - fb["residual"] / max(1, ev["base"])))
+        st.progress(resilience)
+
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Bütçe", f"{fb['cost']}/10")
+        c2.metric("Koruma", fb["protection"])
+        c3.metric("Kalan Risk", fb["residual"])
+        c4.metric("Kriz XP", f"{fb['base_points']}/40")
+
+        if fb["layer_bonus"] > 0:
+            st.markdown(
+                "<div class='success-box'><b>+5 Katman Bonusu:</b> "
+                "Risk kontrolü ile risk finansmanını birlikte kullandın.</div>",
+                unsafe_allow_html=True,
+            )
+
+        st.markdown(
+            "<div class='warning-box'><b>Ders bağlantısı:</b> "
+            "İyi risk yönetimi tek bir teknik seçmek değildir. Kontrol + finansman + likidite/sermaye "
+            "birlikte düşünülür; yine de kalan risk tamamen yok olmayabilir.</div>",
+            unsafe_allow_html=True,
+        )
+
+    button_label = "🏁 ARENAYI BİTİR" if ri == len(ROUNDS) - 1 else "➡️ SONRAKİ GÖREV"
+    if st.button(button_label, type="primary", use_container_width=True):
+        if ri == len(ROUNDS) - 1:
             save_result()
             st.session_state.finished = True
         else:
-            st.session_state.round += 1
+            st.session_state.round_idx += 1
         st.rerun()
+
     st.stop()
 
-# Soru
+# =========================================================
+# GÖREV FORMU
+# =========================================================
+if not st.session_state.joker_used and r["type"] != "crisis":
+    st.markdown(
+        """
+        <div class="power-card">
+          <b>🎲 RİSK JOKERİ HAZIR</b><br>
+          Bu görevde kullanırsan kazandığın bilgi XP'si ikiye katlanır.
+          Yanlış cevapta bonus gelmez.
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
 if r["type"] == "single":
-    with st.form(f"f{ri}"):
-        st.markdown(f"### {r['question']}")
-        ans = st.radio("Cevabın", r["options"], index=None)
+    with st.form(f"single_form_{ri}"):
+        st.markdown(f"### 🎯 Karar Noktası")
+        st.write(r["question"])
 
-        joker = False
+        answer = st.radio(
+            "Cevabın",
+            r["options"],
+            index=None,
+        )
+
+        use_joker = False
         if not st.session_state.joker_used:
-            joker = st.checkbox("🎲 Risk Jokerimi bu turda kullan — puanım 2 kat olsun")
+            use_joker = st.checkbox("🎲 Risk Jokerini kullan")
 
-        ok = st.form_submit_button("🔒 Cevabı Kilitle", type="primary", use_container_width=True)
+        submit = st.form_submit_button("🔒 KARARI KİLİTLE", type="primary", use_container_width=True)
 
-    if ok:
-        if ans is None:
+    if submit:
+        if answer is None:
             st.error("Önce bir cevap seç.")
         else:
-            pts = r["points"] if ans == r["correct"] else 0
-            if joker:
-                pts *= 2
+            base_points = r["base_max"] if answer == r["correct"] else 0
+            if use_joker:
                 st.session_state.joker_used = True
-            st.session_state.knowledge += pts
-            st.session_state.feedback[ri] = {"points":pts}
+            record_round(ri, base_points, use_joker)
             st.rerun()
 
 elif r["type"] == "matching":
-    with st.form(f"f{ri}"):
+    with st.form(f"matching_form_{ri}"):
+        st.markdown("### 🧩 Eşleştirme Görevi")
         responses = {}
-        for i,(q,a) in enumerate(r["items"],1):
+
+        for i, (q, _) in enumerate(r["items"], 1):
             st.markdown(f"**{i}. {q}**")
             responses[q] = st.selectbox(
                 f"{i}. seçim",
                 ["— Seçiniz —"] + r["options"],
-                key=f"m_{ri}_{i}",
-                label_visibility="collapsed"
+                key=f"match_{ri}_{i}",
+                label_visibility="collapsed",
             )
 
-        joker = False
+        use_joker = False
         if not st.session_state.joker_used:
-            joker = st.checkbox("🎲 Risk Jokerimi bu turda kullan — puanım 2 kat olsun")
+            use_joker = st.checkbox("🎲 Risk Jokerini kullan")
 
-        ok = st.form_submit_button("🔒 Cevapları Kilitle", type="primary", use_container_width=True)
+        submit = st.form_submit_button("🔒 CEVAPLARI KİLİTLE", type="primary", use_container_width=True)
 
-    if ok:
+    if submit:
         if any(v == "— Seçiniz —" for v in responses.values()):
             st.error("Tüm eşleştirmeleri tamamla.")
         else:
-            pts = sum(r["each"] for q,a in r["items"] if responses[q] == a)
-            if joker:
-                pts *= 2
+            base_points = sum(r["each"] for q, a in r["items"] if responses[q] == a)
+            if use_joker:
                 st.session_state.joker_used = True
-            st.session_state.knowledge += pts
-            st.session_state.feedback[ri] = {"points":pts}
+            record_round(ri, base_points, use_joker)
             st.rerun()
 
 else:
     st.markdown(
         """
-        <div class="warn">
-        <b>Kriz henüz açıklanmadı.</b><br>
-        Bir sigorta şirketinin risk komitesindesin. 10 bütçe puanın var.
-        Kriz gelmeden önce hazırlıklarını seç.
+        <div class="boss">
+          <div class="boss-title">👾 BOSS GÖREVİ: KRİZ HENÜZ GİZLİ</div>
+          <div>
+            Bir sigorta şirketinin risk komitesindesin. Elinde <b>10 bütçe puanı</b> var.
+            Hangi krizin geleceğini bilmiyorsun. Yatırımlarını seç, sonra kriz açıklansın.
+          </div>
         </div>
         """,
-        unsafe_allow_html=True
+        unsafe_allow_html=True,
     )
 
+    st.markdown("### 🛒 Risk Yatırım Pazarı")
+    for key, m in MEASURES.items():
+        st.markdown(
+            f"**{m['icon']} {m['label']}** — Maliyet: **{m['cost']}** "
+            f"• {'Kontrol' if m['layer']=='control' else 'Finansman'}"
+        )
+
     display_to_id = {
-        f"{v['label']} • Maliyet: {v['cost']}": k
-        for k,v in MEASURES.items()
+        f"{m['icon']} {m['label']} • Maliyet {m['cost']}": key
+        for key, m in MEASURES.items()
     }
 
-    with st.form("crisis_strategy_form"):
-        chosen_display = st.multiselect("Hazırlıklarını seç", list(display_to_id.keys()))
-        ok = st.form_submit_button("🔒 Stratejiyi Kilitle", type="primary", use_container_width=True)
+    with st.form("crisis_strategy_form_v5"):
+        selected_display = st.multiselect(
+            "10 bütçe puanını aşmadan yatırımlarını seç",
+            list(display_to_id.keys()),
+        )
+        submit = st.form_submit_button("⚔️ STRATEJİYİ KİLİTLE VE KRİZİ AÇ", type="primary", use_container_width=True)
 
-    if ok:
-        chosen = [display_to_id[x] for x in chosen_display]
-        cost = sum(MEASURES[x]["cost"] for x in chosen)
+    if submit:
+        selected = [display_to_id[x] for x in selected_display]
+        cost = sum(MEASURES[x]["cost"] for x in selected)
 
         if cost > 10:
-            st.error(f"Bütçe aşıldı: {cost}/10")
+            st.error(f"🚫 Bütçeyi aştın: {cost}/10. Bazı yatırımları çıkar.")
+        elif not selected:
+            st.error("En az bir yatırım seç.")
         else:
             ev = st.session_state.event
-            protection = sum(ev["p"].get(x,0) for x in chosen)
-            layers = {MEASURES[x]["layer"] for x in chosen}
-            bonus = 5 if {"control","finance"}.issubset(layers) else 0
+            protection = sum(ev["p"].get(x, 0) for x in selected)
+            layers = {MEASURES[x]["layer"] for x in selected}
+            layer_bonus = 5 if {"control", "finance"}.issubset(layers) else 0
             residual = max(0, ev["base"] - protection)
-            pts = min(40, max(0, 40 - residual + bonus))
 
-            st.session_state.crisis_score += pts
-            st.session_state.feedback[ri] = {
-                "points":pts, "event":ev, "cost":cost,
-                "protection":protection, "bonus":bonus, "residual":residual
-            }
+            crisis_points = min(40, max(0, 40 - residual + layer_bonus))
+
+            record_round(
+                ri,
+                crisis_points,
+                joker_used=False,
+                extra={
+                    "event": ev,
+                    "cost": cost,
+                    "protection": protection,
+                    "residual": residual,
+                    "layer_bonus": layer_bonus,
+                    "selected": selected,
+                },
+            )
             st.rerun()
-
