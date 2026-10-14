@@ -83,9 +83,9 @@ def save_result():
         """, (
             st.session_state.player_id,
             st.session_state.name,
-            st.session_state.knowledge + st.session_state.crisis,
+            st.session_state.knowledge + st.session_state.crisis_score_score,
             st.session_state.knowledge,
-            st.session_state.crisis,
+            st.session_state.crisis_score,
             duration,
             datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         ))
@@ -233,7 +233,7 @@ def start_player(name):
     st.session_state.started_at = time.time()
     st.session_state.round = 0
     st.session_state.knowledge = 0
-    st.session_state.crisis = 0
+    st.session_state.crisis_score = 0
     st.session_state.joker_used = False
     st.session_state.feedback = {}
     st.session_state.finished = False
@@ -241,7 +241,7 @@ def start_player(name):
     st.session_state.event = rng.choice(EVENTS)
 
 def total():
-    return st.session_state.knowledge + st.session_state.crisis
+    return st.session_state.knowledge + st.session_state.crisis_score_score_score
 
 def clear_session_only():
     for k in list(st.session_state.keys()):
@@ -335,7 +335,7 @@ if st.session_state.finished:
     c1,c2,c3 = st.columns(3)
     c1.metric("Toplam Puanım", total())
     c2.metric("Bilgi Puanım", st.session_state.knowledge)
-    c3.metric("Kriz Puanım", st.session_state.crisis)
+    c3.metric("Kriz Puanım", st.session_state.crisis_score)
 
     st.caption(f"Süre: {st.session_state.duration // 60} dk {st.session_state.duration % 60} sn")
 
@@ -508,7 +508,7 @@ else:
         for k,v in MEASURES.items()
     }
 
-    with st.form("crisis"):
+    with st.form("crisis_strategy_form"):
         chosen_display = st.multiselect("Hazırlıklarını seç", list(display_to_id.keys()))
         ok = st.form_submit_button("🔒 Stratejiyi Kilitle", type="primary", use_container_width=True)
 
@@ -526,7 +526,7 @@ else:
             residual = max(0, ev["base"] - protection)
             pts = min(40, max(0, 40 - residual + bonus))
 
-            st.session_state.crisis += pts
+            st.session_state.crisis_score += pts
             st.session_state.feedback[ri] = {
                 "points":pts, "event":ev, "cost":cost,
                 "protection":protection, "bonus":bonus, "residual":residual
