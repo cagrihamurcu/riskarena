@@ -83,7 +83,7 @@ def save_result():
         """, (
             st.session_state.player_id,
             st.session_state.name,
-            st.session_state.knowledge + st.session_state.crisis_score_score,
+            st.session_state.knowledge + st.session_state.crisis_score,
             st.session_state.knowledge,
             st.session_state.crisis_score,
             duration,
@@ -240,12 +240,49 @@ def start_player(name):
     rng = random.Random(st.session_state.player_id)
     st.session_state.event = rng.choice(EVENTS)
 
+def ensure_player_state():
+    """Eski uygulama sürümünden kalan tarayıcı oturumlarında eksik anahtarları güvenle tamamlar."""
+    if "name" not in st.session_state:
+        return
+
+    if "knowledge" not in st.session_state:
+        st.session_state.knowledge = 0
+
+    if "crisis_score" not in st.session_state:
+        # Eski sürümde "crisis" adı kullanılmış olabilir.
+        legacy_value = st.session_state.get("crisis", 0)
+        if isinstance(legacy_value, (int, float)):
+            st.session_state.crisis_score = int(legacy_value)
+        else:
+            st.session_state.crisis_score = 0
+
+    if "round" not in st.session_state:
+        st.session_state.round = 0
+    if "joker_used" not in st.session_state:
+        st.session_state.joker_used = False
+    if "feedback" not in st.session_state:
+        st.session_state.feedback = {}
+    if "finished" not in st.session_state:
+        st.session_state.finished = False
+    if "started_at" not in st.session_state:
+        st.session_state.started_at = time.time()
+    if "player_id" not in st.session_state:
+        st.session_state.player_id = str(uuid.uuid4())
+    if "event" not in st.session_state:
+        rng = random.Random(st.session_state.player_id)
+        st.session_state.event = rng.choice(EVENTS)
+
+
 def total():
-    return st.session_state.knowledge + st.session_state.crisis_score_score_score
+    ensure_player_state()
+    return st.session_state.knowledge + st.session_state.crisis_score
 
 def clear_session_only():
     for k in list(st.session_state.keys()):
         del st.session_state[k]
+
+# Eski/hot-reload edilmiş oturumlarda state uyumluluğunu sağla.
+ensure_player_state()
 
 # -----------------------------
 # Sidebar — SADECE KENDİ BİLGİSİ
@@ -532,3 +569,4 @@ else:
                 "protection":protection, "bonus":bonus, "residual":residual
             }
             st.rerun()
+
